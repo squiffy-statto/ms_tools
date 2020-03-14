@@ -1,16 +1,20 @@
 
 
-
+*** UPDATE THE SEED BASED ON THE SESSION ***;
 %let seed&_ii_. = %sysevalf(&mainseed. + &_ii_.);
 %put seed = &&seed&_ii_.;
 
-data parameters;
+
+*** CREATE PARAMETERS TO SIMULATE FROM ***;
+data parameters1;
   mu = 2; sigma = 5;
 run;
 
+
+*** SIMULATE THE DATA ***;
 %odsoff(notesyn=Y);
-proc mcmc data    = parameters
-          outpost = sample
+proc mcmc data    = parameters1
+          outpost = sample1
           seed    = &&seed&_ii_. 
           nbi     = 0
           nmc     = &nsims.
@@ -21,11 +25,15 @@ proc mcmc data    = parameters
 run;
 %odson;
 
-data sample;
-  set sample;
+
+*** ADD THE SEED TO THE DATASET TO KEEP A RECORD ***;
+data sample2;
+  set sample1;
   simseed = &&seed&_ii_.;
 run;
 
-proc datasets lib = work nolist;
-  delete parameters;
-run;
+/**/
+/**** DELETE THE PARAMETERS DATA AS WE DONT WANT TO KEEP ***;*/
+/*proc datasets lib = work nolist;*/
+/*  delete parameters1;*/
+/*run;*/

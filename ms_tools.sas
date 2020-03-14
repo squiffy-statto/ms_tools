@@ -2,7 +2,7 @@
 |
 | Program Name:    MS_TOOLS.sas
 |
-| Program Version: 1.1
+| Program Version: 1.0
 |
 | Program Purpose: Creates a set of utility macros to help run code in parallel
 |
@@ -18,25 +18,28 @@
 |--------------------------------------------------------------------------------
 | Macro List:
 |--------------------------------------------------------------------------------
-| Name     : %ms_signon 
+| Name     : ms_signon 
 | Purpose  : Opens multiple child remote sessions in SAS 
 | Arguments: nsess [REQ] = total number of remote sessions needed
 |            prefix[OPT] = Prefix for the named sessions (default is rs)  
 |
 |---------------------------------------------------------------------------------
-| Name     : %ms_signoff 
+| Name     : ms_signoff 
 | Purpose  : Closes remote sessions specified in SAS
 | Arguments: sess_list[OPT] = comma list of specific sessions to end (default is
 |                             all active child sessions).   
 |
 |---------------------------------------------------------------------------------
-| Name     : %ms_include 
+| Name     : ms_include 
 | Purpose  : Includes external sas code files in specified remote sessions
 | Arguments: sess_list[REQ] = comma list of sessions to include the code in
 |            file_list[REQ] = comma list of sas files to include in the sessions
 |            mvar_list[OPT] = comma list of macro vars to copy to all sessions
 |            keep_list[OPT] = comma list of work datasets to copy back to main  
 |                             work (default is all remote work datasets).
+|            sign_off[OPT]  = set to N to keep the remote sessions open. This
+|                             allows you to pass more code to them once they 
+|                             have finished.
 |
 | Notes: This macro copies data back from the work lib in the remote sessions
 |        back into the parent work session and gives it a suffix label for the
@@ -70,16 +73,6 @@
 |
 *********************************************************************************/;
 
-
-/*options nosource nonotes;*/
-/*proc printto log="file.txt" new;*/
-/*run;*/
-/*quit;*/
-/*listtask _all_;*/
-/*proc printto;*/
-/*run;*/
-/*quit;*/
-/*options source notes;*/
 
 **********************************************************************************;
 *** MS_SIGNON                                                                  ***;
@@ -202,7 +195,8 @@
 %macro ms_include(sess_list =
                  ,file_list =
                  ,mvar_list =
-                 ,keep_list =);
+                 ,keep_list =
+                 ,sign_off  =);
 
 
   %let toolname = MS_INCLUDE;
@@ -263,12 +257,23 @@
   %end;
 
 
-  %*** CREATE KEEP LIST ***;
+  %*** CREATE KEEP LIST AND EXTRA SQL CODE NEEDED ***;
   %let keeplist=;
+  %let keepcode=;
   %do _ii_ = 1 %to &keep_n.;
     %let keep&_ii_. = %scan(&keep_list.,&_ii_.,%str(,));
     %let keeplist = &keeplist. &&keep&_ii_.;
+	%if &_ii_. = 1 %then %let keepcode = and ( ; 
+    %if &_ii_. = &keep_n. %then %let keepcode = &keepcode. upcase(memname) = upcase("&&keep&_ii_") ); 
+    %else %let keepcode = &keepcode. upcase(memname) = upcase("&&keep&_ii_") or ;
   %end;
+
+  %put &=keepcode;
+
+
+  %*** IF SIGN OFF NOT PROVIDED DEFAULT TO YES ***;
+  %if %length(&sign_off.) = 0 | &sign_off. = Y %then %let persist = no;
+  %else %if &sign_off. = N %then %let persist = yes; 
 
 
   %*** CREATE PARALLEL SESSION CALLS ***;
@@ -276,10 +281,11 @@
 
 
 	 %*** TRANSFER KEY MACRO VARIABLES INTO REMOTE SESSION ***;
-     %syslput _ii_      = &_ii_      / remote = &&rs&_ii_.;
-     %syslput rs&_ii_   = &&rs&_ii_  / remote = &&rs&_ii_.;
-	 %syslput mainwork  = &mainwork  / remote = &&rs&_ii_.;
-     %syslput file_list = &file_list / remote = &&rs&_ii_.;
+     %syslput _ii_      = &_ii_.              / remote = &&rs&_ii_.;
+     %syslput rs&_ii_   = &&rs&_ii_.          / remote = &&rs&_ii_.;
+	 %syslput mainwork  = %bquote(&mainwork.) / remote = &&rs&_ii_.;
+     %syslput file_list = &file_list.         / remote = &&rs&_ii_.;
+     %syslput keepcode  = &keepcode.          / remote = &&rs&_ii_.;
 
 
      %*** TRANSFER ANY SPECIFIED MACRO VARIABLES INTO REMOTE SESSIONS  ***;
@@ -288,8 +294,8 @@
      %end;
 
 
-     *** SEND CODE TO REMOTE SESSIONS ***;
-     rsubmit &&rs&_ii_. wait=no cpersist=no; 
+     *** CREATE RSUBMIT BLOCK WITH INCLUE FOR EACH REMOTE SESSION ***;
+     rsubmit &&rs&_ii_. wait=no cpersist=&persist.; 
 
 
        *** LOCATION OF MAIN WORK LIBRARY ***;
@@ -300,48 +306,34 @@
        %include &file_list.;
 
 
-       %if &keep_n. = 0 %then %do;
-         
+	   *** CREATE LISTS OF REMOTE WORK DATASETS ***;
+       proc sql noprint;
 
-	     *** CREATE LISTS OF WORK DATASETS ***;
-	     proc sql noprint;
+         select distinct memname into :dsetlist separated by ' '
+         from sashelp.vmember 
+         where libname = "WORK" and memtype = "DATA" &keepcode. ;
 
-	       select distinct memname into :dsetlist separated by ' '
-           from sashelp.vmember 
-           where libname = "WORK" and memtype = "DATA";
+         select distinct cats(memname,'=',memname,"_&&rs&_ii_") into :renamelist separated by ' '
+         from sashelp.vmember 
+         where libname = "WORK" and memtype = "DATA" &keepcode. ;
 
-           select distinct cats(memname,'=',memname,"_&&rs&_ii_") into :renamelist separated by ' '
-           from sashelp.vmember 
-           where libname = "WORK" and memtype = "DATA";
+         select cats(memname,"_&&rs&_ii_") into :copylist separated by ' '
+         from sashelp.vmember 
+         where libname = "WORK" and memtype = "DATA" &keepcode. ;
 
-           select cats(memname,"_&&rs&_ii_") into :copylist separated by ' '
-           from sashelp.vmember 
-           where libname = "WORK" and memtype = "DATA";
-
-         quit;
-         run;
+       quit;
+       run;
 
 
-         *** ADD SUFFIX TO EACH DATASET AND COPY BACK TO MAIN WORK LIBRARY ***;
-         proc datasets lib = work nolist;
-           change &renamelist.;
-           copy out = mainwork; 
-           select &copylist.;
-           delete &dsetlist.;
-         quit;
-         run;
-         
+	   *** ADD SUFFIX TO EACH DATASET AND COPY BACK TO MAIN WORK LIBRARY ***;
+       proc datasets lib = work nolist;
+         change &renamelist.;
+         copy out = mainwork; 
+         select &copylist.;
+         delete &dsetlist.;
+       quit;
+       run;
 
-       %end;
-       %else %do;
-
-
-
-         *** COPY SPECIFIED WORK DATA BACK TO MAIN WORK LIBRARY ***;
-
-
-
-	   %end;
 
      endrsubmit;
 
@@ -352,3 +344,8 @@
 %mend;
 
 
+
+**********************************************************************************;
+*** MS_MACROCALL                                                               ***;
+**********************************************************************************;
+ 

@@ -1,6 +1,7 @@
 
-
-
+proc datasets lib = work nolist kill;
+quit;
+run;
 
 **********************************************************************************;
 *** SIMPLE EXAMPLE USAGE                                                       ***;
@@ -29,14 +30,19 @@
 %ms_signon(sess_n=2);
 %ms_include(mvar_list = %str(nsims, mainseed)
 		   ,file_list = %str("&sas_repo.\sim_tools\sim_tools.sas"
-                            ,"&sas_repo.\ms_tools\ms_tools_ex1_rs_code.sas"));
-%ms_signoff();
+                            ,"&sas_repo.\ms_tools\ms_tools_ex1_rs_code.sas")
+           ,sign_off  = N);
 
+
+%ms_include(mvar_list = %str(nsims, mainseed)
+		   ,file_list = %str("&sas_repo.\sim_tools\sim_tools.sas"
+                            ,"&sas_repo.\ms_tools\ms_tools_ex1_rs_code.sas")
+           ,sign_off  = N);
+
+%ms_signoff();
 
 *** STOP TIMER ***;
 %stoptime();
-
-
 
 **********************************************************************************;
 *** SPECIFYING 5 SESSIONS TO USE FOR 5 DIFFERENT PROGRAMS                      ***;
@@ -47,17 +53,26 @@
 
 
 *** OPEN MULTIPLE CHILD SAS SESSIONS ***;
-%ms_signon(sess_n=5, prefix=%str(mysess));
+%ms_signon(sess_n=5, prefix=%str(rsess));
 
 
-*** INCLUDE SAS CODE IN CHILD SESSIONS ***;
-%ms_include(sess_list = %str(mysess1, mysess2, mysess3, mysess4, mysess5)
+*** INCLUDE SAS CODE IN CHILD SESSION 1 TO 3 ***;
+%ms_include(sess_list = %str(rsess1, rsess2, rsess3)
            ,mvar_list = %str(nsims, mainseed)
 		   ,file_list = %str("&sas_repo.\sim_tools\sim_tools.sas"
-                            ,"&sas_repo.\ms_tools\ms_tools_ex1_rs_code.sas"));
+                            ,"&sas_repo.\ms_tools\ms_tools_ex1_rs_code.sas")
+           ,sign_off = Y);
 
 
-*** CLOSE MULTIPLE CHILD SESSIONS ***;
+*** INCLUDE SAS CODE IN CHILD SESSION 4 AND 5 ***;
+%ms_include(sess_list = %str(rsess4, rsess5)
+           ,mvar_list = %str(nsims, mainseed)
+		   ,file_list = %str("&sas_repo.\sim_tools\sim_tools.sas"
+                            ,"&sas_repo.\ms_tools\ms_tools_ex1_rs_code.sas")
+           ,sign_off = Y);
+
+
+*** CLOSE  CHILD SESSIONS ***;
 %ms_signoff(sess_list=%str(rsess1, rsess2, rsess3));
 
 
