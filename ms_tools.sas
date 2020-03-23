@@ -438,6 +438,8 @@
 
   %end;
 
+  *** HALT SAS UNTIL ALL REMOTE SESSIONS COMPLETED ***;
+  waitfor _all_ &sesslist.;
 
 %mend;
 
@@ -592,10 +594,11 @@
        *** LOCATION OF MAIN WORK LIBRARY AND MACRO STORE ***;
        libname mainwork "&mainwork.";
        libname &&rs&_ii_. "&mainwork./&&rs&_ii_.";
-
-	   %put &&rs&_ii_.;
-
        options mstored sasmstore=&&rs&_ii_.;
+
+
+	   %put &=macro_call;
+
 
 
 	   *** CALL MACRO ***;
@@ -639,6 +642,10 @@
 
 
   %end;
+
+ 
+  *** HALT SAS UNTIL ALL REMOTE SESSIONS COMPLETED ***;
+  waitfor _all_ &sesslist.;
 
 
 %mend;
