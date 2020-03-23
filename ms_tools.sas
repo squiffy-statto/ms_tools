@@ -6,13 +6,9 @@
 |
 | Program Purpose: Creates a set of utility macros to help run code in parallel
 |
-| Program Notes:   !!!!!!!!!!!!!!! DO NOT USE OF HARP SERVERS !!!!!!!!!!!!!!!!!! 
-|                  THIS CODE SETS MULTIPLE SESSIONS RUNNING IF MANY USERS DO 
-|                  THIS IT COULD OVERWHELM THE SERVERS AND CAUSE IT TO CRASH. 
-| 
-| SAS Version:  9.4 HPC Servers & Remote Desktop or user version of PC SAS 
+| SAS Version:  9.4 
 |
-| Created By:   Thomas Drury: tad66240
+| Created By:   Thomas Drury
 | Date:         13-03-20 
 |
 |-------------------------------------------------------------------------------
@@ -143,14 +139,6 @@
   %let toolname = MS_SIGNON;
 
 
-  %*** PREVENT FROM RUNNING ON PRODUCTION HARP SERVERS ***;
-  %if %upcase(&syshostname.) = UK1SALX00175 | %upcase(&syshostname.) = US1SALX00259 %then %do;
-      %put ER%upcase(ror:(&toolname.):) This macro is only designed to run on the HPC servers or local versions of PC SAS.;
-      %put ER%upcase(ror:(&toolname.):) It is not designed to run on HARP servers (UK1SALX00175 or US1SALX00259). Macro will abort.;
-      %abort cancel;
-  %end;
-
-
   %*** CHECK NUMBER OF SESSIONS ***;
   %if &sess_n. gt 10 %then %do;
       %put ER%upcase(ror:(&toolname.):) This macro is only designed to run a maximum of 10 remote sessions.;
@@ -214,14 +202,6 @@
 
 
   %let toolname = MS_SIGNOFF;
-
-
-  %*** PREVENT FROM RUNNING ON PRODUCTION HARP SERVERS ***;
-  %if %upcase(&syshostname.) = UK1SALX00175 | %upcase(&syshostname.) = US1SALX00259 %then %do;
-      %put ER%upcase(ror:(&toolname.):) This macro is only designed to run on the HPC servers or local versions of PC SAS.;
-      %put ER%upcase(ror:(&toolname.):) It is not designed to run on HARP servers (UK1SALX00175 or US1SALX00259). Macro will abort.;
-      %abort cancel;
-  %end;
 
 
   %*** CREATE SESSION LIST ***;
@@ -300,14 +280,6 @@
 
 
   %let toolname = MS_INCLUDE;
-
-
-  %*** PREVENT FROM RUNNING ON PRODUCTION HARP SERVERS ***;
-  %if %upcase(&syshostname.) = UK1SALX00175 | %upcase(&syshostname.) = US1SALX00259 %then %do;
-      %put ER%upcase(ror:(&toolname.):) This macro is only designed to run on the HPC servers or local versions of PC SAS.;
-      %put ER%upcase(ror:(&toolname.):) It is not designed to run on HARP servers (UK1SALX00175 or US1SALX00259). Macro will abort.;
-      %abort cancel;
-  %end;
 
 
   %*** GET LOCATION OF MAIN WORK ***;
@@ -458,14 +430,6 @@
 
 
   %let toolname = MS_MACROCALL;
-
-
-  %*** PREVENT FROM RUNNING ON PRODUCTION HARP SERVERS ***;
-  %if %upcase(&syshostname.) = UK1SALX00175 | %upcase(&syshostname.) = US1SALX00259 %then %do;
-      %put ER%upcase(ror:(&toolname.):) This macro is only designed to run on the HPC servers or local versions of PC SAS.;
-      %put ER%upcase(ror:(&toolname.):) It is not designed to run on HARP servers (UK1SALX00175 or US1SALX00259). Macro will abort.;
-      %abort cancel;
-  %end;
 
 
   %*** GET LOCATION OF MAIN WORK ***;
