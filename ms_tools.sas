@@ -393,11 +393,7 @@
 
 
      *** CREATE RSUBMIT BLOCK WITH INCLUE FOR EACH REMOTE SESSION ***;
-     rsubmit &&rs&_ii_. wait=no cpersist=&persist.; 
-
-
-       *** LOCATION OF MAIN WORK LIBRARY ***;
-       libname mainwork "&mainwork.";
+     rsubmit &&rs&_ii_. wait=no cpersist=&persist. inheritlib=( work=mainwork ); 
 
 
        *** INCLUDE CODE ***;
@@ -541,7 +537,6 @@
   %else %if &runenv. = SASSTUDIO %then %let macrocat = work.sasmac1;
 
 
-
   %*** CREATE KEEP LIST AND EXTRA SQL CODE NEEDED ***;
   %let keeplist=;
   %let keepcode=;
@@ -559,8 +554,28 @@
   %else %if &sign_off. = N %then %let persist = yes; 
 
 
-  *** SET OPTION ***;
+  *** OPTION TO MAKE DIRECTORIES ***;
   options dlcreatedir;
+  
+     
+  *** CHECK IF SHARED MACRO CATALOG EXISTS ***; 
+  data _null_;
+    copymacs = cexist("shared.sasmacr");
+    call symput("copymacs", strip(put(copymacs,8.)));
+  run;  
+
+
+  %*** IF NEEDED COPY MACRO CATALOG TO SEPERATE AREA ***;
+  %if &copymacs. ne 1 %then %do;
+  
+    libname shared "&mainwork./shared";  
+    
+    proc catalog cat = &macrocat. ;
+      copy out = shared.sasmacr;
+    run;
+    quit;
+
+  %end;
 
 
   %*** CREATE PARALLEL SESSION CALLS ***;
@@ -573,35 +588,21 @@
 	 %syslput mainwork   = &mainwork.   / remote = &&rs&_ii_.;
      %syslput macro_call = &macro_call. / remote = &&rs&_ii_.;
      %syslput keepcode   = &keepcode.   / remote = &&rs&_ii_.;
-     %syslput macrocat   = &macrocat.   / remote = &&rs&_ii_.;
-
-
-     *** LIBNAME TO COPY MACRO TO ***;
-     libname &&rs&_ii_. "&mainwork./&&rs&_ii_.";
-
-
-	 *** PUSH MACROS FROM MAIN WORK INTO REMOTE SESSION ***;
-     proc catalog cat = &macrocat. ;
-       copy out = &&rs&_ii_...sasmacr;
-     run;
-     quit;
-
+     %syslput copymacs   = &copymacs.   / remote = &&rs&_ii_.;
+     
 
      *** CREATE RSUBMIT BLOCK WITH MACRO CALL FOR EACH REMOTE SESSION ***;
-     rsubmit &&rs&_ii_. wait=no cpersist=&persist.; 
+     rsubmit &&rs&_ii_. wait=no cpersist=&persist. inheritlib=( work=mainwork ); 
 
 
-       *** LOCATION OF MAIN WORK LIBRARY AND MACRO STORE ***;
-       libname mainwork "&mainwork.";
-       libname &&rs&_ii_. "&mainwork./&&rs&_ii_.";
-       options mstored sasmstore=&&rs&_ii_.;
+       %*** IF NEW REMOTE SESSION SET UP SHARED MACRO LIBNAME ***;
+       %if &copymacs. ne 1 %then %do;
+         libname shared "&mainwork./shared";
+       %end;
 
 
-	   %put &=macro_call;
-
-
-
-	   *** CALL MACRO ***;
+   	   *** CALL MACRO ***;
+       options mstored source sasmstore=shared;
        %&macro_call.;
 
 
@@ -634,19 +635,33 @@
        run;
 
 
+       *** REMOVE ANY REMAINING WORK DATA ***;
+       proc datasets lib = work nolist kill;
+       quit;
+       run;
+       
+
      endrsubmit;
 
-
-	 *** CLEAR LIBNAMES ***;
-     libname &&rs&_ii_. clear; 
-
-
+ 
   %end;
 
- 
+
   *** HALT SAS UNTIL ALL REMOTE SESSIONS COMPLETED ***;
   waitfor _all_ &sesslist.;
 
+
+  %*** IF SIGNOFF THEN REMOVE SHARED CATALOG AND LIBNAME ***;
+  %if %length(&sign_off.) = 0 | &sign_off. = Y %then %do;
+  
+    proc datasets lib = shared nolist;
+      delete sasmacr / mt=cat;
+    quit;
+  
+    libname shared clear;
+  
+  %end;
+  
 
 %mend;
 
