@@ -335,7 +335,7 @@
   %let sess_n = %sysfunc(countw(&sess_list.,%str(,)));
   %let file_n = %sysfunc(countw(&file_list.,%str(,)));
   %let mvar_n = %sysfunc(countw(&mvar_list.,%str(,)));
-  %let keep_n = %sysfunc(countw(&keep_list.,%str(,)));
+  %if %upcase(&keep_list.) ne NONE %then %let keep_n = %sysfunc(countw(&keep_list.,%str(,)));
 
 
   %*** CREATE SESSION LIST ***;
@@ -362,15 +362,17 @@
   %end;
 
 
-  %*** CREATE KEEP LIST AND EXTRA SQL CODE NEEDED ***;
-  %let keeplist=;
-  %let keepcode=;
-  %do _ii_ = 1 %to &keep_n.;
-    %let keep&_ii_. = %scan(&keep_list.,&_ii_.,%str(,));
-    %let keeplist = &keeplist. &&keep&_ii_.;
-	%if &_ii_. = 1 %then %let keepcode = and ( ; 
-    %if &_ii_. = &keep_n. %then %let keepcode = &keepcode. upcase(memname) = upcase("&&keep&_ii_") ); 
-    %else %let keepcode = &keepcode. upcase(memname) = upcase("&&keep&_ii_") or ;
+  %*** CREATE KEEP LIST AND EXTRA SQL CODE NEEDED - UNLESS TOLD TO KEEP NONE ***;
+  %if %upcase(&keep_list.) ne NONE %then %do;
+    %let keeplist=;
+    %let keepcode=;
+    %do _ii_ = 1 %to &keep_n.;
+      %let keep&_ii_. = %scan(&keep_list.,&_ii_.,%str(,));
+      %let keeplist = &keeplist. &&keep&_ii_.;
+      %if &_ii_. = 1 %then %let keepcode = and ( ; 
+      %if &_ii_. = &keep_n. %then %let keepcode = &keepcode. upcase(memname) = upcase("&&keep&_ii_") ); 
+      %else %let keepcode = &keepcode. upcase(memname) = upcase("&&keep&_ii_") or ;
+    %end;
   %end;
 
 
@@ -388,7 +390,10 @@
      %syslput rs&_ii_   = &&rs&_ii_.          / remote = &&rs&_ii_.;
 	 %syslput mainwork  = %bquote(&mainwork.) / remote = &&rs&_ii_.;
      %syslput file_list = &file_list.         / remote = &&rs&_ii_.;
-     %syslput keepcode  = &keepcode.          / remote = &&rs&_ii_.;
+     %syslput keep_list = &keep_list.         / remote = &&rs&_ii_.;
+     %if %upcase(&keep_list.) ne NONE %then %do; 
+     %syslput keepcode  = &keepcode.          / remote = &&rs&_ii_.; 
+     %end;
 
 
      %*** TRANSFER ANY SPECIFIED MACRO VARIABLES INTO REMOTE SESSIONS  ***;
@@ -406,19 +411,21 @@
 
 
 	   *** CREATE LISTS OF REMOTE WORK DATASETS ***;
+       %if %upcase(&keep_list.) ne NONE %then %do;
+
        proc sql noprint;
 
-         select distinct memname into :dsetlist separated by ' '
-         from sashelp.vmember 
-         where libname = "WORK" and memtype = "DATA" &keepcode. ;
+           select distinct memname into :dsetlist separated by ' '
+           from sashelp.vmember 
+           where libname = "WORK" and memtype = "DATA" &keepcode. ;
 
-         select distinct cats(memname,'=',memname,"_&&rs&_ii_") into :renamelist separated by ' '
-         from sashelp.vmember 
-         where libname = "WORK" and memtype = "DATA" &keepcode. ;
+           select distinct cats(memname,'=',memname,"_&&rs&_ii_") into :renamelist separated by ' '
+           from sashelp.vmember 
+           where libname = "WORK" and memtype = "DATA" &keepcode. ;
 
-         select cats(memname,"_&&rs&_ii_") into :copylist separated by ' '
-         from sashelp.vmember 
-         where libname = "WORK" and memtype = "DATA" &keepcode. ;
+           select cats(memname,"_&&rs&_ii_") into :copylist separated by ' '
+           from sashelp.vmember 
+           where libname = "WORK" and memtype = "DATA" &keepcode. ;
 
        quit;
        run;
@@ -432,6 +439,8 @@
          delete &dsetlist.;
        quit;
        run;
+
+	   %end;
 
 
      endrsubmit;
@@ -487,8 +496,7 @@
 
   %*** COUNT LISTS ***;
   %let sess_n  = %sysfunc(countw(&sess_list.,%str(,)));
-  %let keep_n  = %sysfunc(countw(&keep_list.,%str(,)));
-
+  %if %upcase(&keep_list.) ne NONE %then %let keep_n = %sysfunc(countw(&keep_list.,%str(,)));
 
   %*** CREATE SESSION LIST ***;
   %let sesslist=;
@@ -543,14 +551,16 @@
 
 
   %*** CREATE KEEP LIST AND EXTRA SQL CODE NEEDED ***;
-  %let keeplist=;
-  %let keepcode=;
-  %do _ii_ = 1 %to &keep_n.;
-    %let keep&_ii_. = %scan(&keep_list.,&_ii_.,%str(,));
-    %let keeplist = &keeplist. &&keep&_ii_.;
-	%if &_ii_. = 1 %then %let keepcode = and ( ; 
-    %if &_ii_. = &keep_n. %then %let keepcode = &keepcode. upcase(memname) = upcase("&&keep&_ii_") ); 
-    %else %let keepcode = &keepcode. upcase(memname) = upcase("&&keep&_ii_") or ;
+  %if %upcase(&keep_list.) ne NONE %then %do;
+    %let keeplist=;
+    %let keepcode=;
+    %do _ii_ = 1 %to &keep_n.;
+      %let keep&_ii_. = %scan(&keep_list.,&_ii_.,%str(,));
+      %let keeplist = &keeplist. &&keep&_ii_.;
+      %if &_ii_. = 1 %then %let keepcode = and ( ; 
+      %if &_ii_. = &keep_n. %then %let keepcode = &keepcode. upcase(memname) = upcase("&&keep&_ii_") ); 
+      %else %let keepcode = &keepcode. upcase(memname) = upcase("&&keep&_ii_") or ;
+    %end;
   %end;
 
 
@@ -592,9 +602,11 @@
      %syslput rs&_ii_    = &&rs&_ii_.   / remote = &&rs&_ii_.;
 	 %syslput mainwork   = &mainwork.   / remote = &&rs&_ii_.;
      %syslput macro_call = &macro_call. / remote = &&rs&_ii_.;
-     %syslput keepcode   = &keepcode.   / remote = &&rs&_ii_.;
      %syslput copymacs   = &copymacs.   / remote = &&rs&_ii_.;
-     
+     %syslput keep_list  = &keep_list.  / remote = &&rs&_ii_.;
+     %if %upcase(&keep_list.) ne NONE %then %do; 
+     %syslput keepcode  = &keepcode.    / remote = &&rs&_ii_.; 
+     %end;   
 
      *** CREATE RSUBMIT BLOCK WITH MACRO CALL FOR EACH REMOTE SESSION ***;
      rsubmit &&rs&_ii_. wait=no cpersist=&persist. inheritlib=( work=mainwork ); 
@@ -612,6 +624,8 @@
 
 
        *** CREATE LISTS OF REMOTE WORK DATASETS ***;
+       %if %upcase(&keep_list.) ne NONE %then %do;
+
        proc sql noprint;
 
          select distinct memname into :dsetlist separated by ' '
@@ -638,6 +652,8 @@
          delete &dsetlist.;
        quit;
        run;
+
+	   %end;
 
 
        *** REMOVE ANY REMAINING WORK DATA ***;

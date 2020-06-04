@@ -30,15 +30,17 @@
  
 
 *** SET LOCATION OF THE SAS REPO FOR MS_TOOLS ***;
-%let sas_repo = /hpawrk/tad66240/repositories;
-
+*%let sas_repo = /hpawrk/tad66240/repositories;
+%let sas_repo = C:\Users\tad66240\OneDrive - GSK\statistics\repositories\sas;
 
 *** INCLUDE SIMULATION TOOLS ***;
-%include "/hpawrk/tad66240/repositories/sim_tools/sim_tools.sas";
+/**%include "/hpawrk/tad66240/repositories/sim_tools/sim_tools.sas";*/
+%include "C:\Users\tad66240\OneDrive - GSK\statistics\repositories\sas\sim_tools\sim_tools.sas";
 
 
 *** INCLUDE MULTI SESSION TOOLS ***;
-%include "/hpawrk/tad66240/repositories/ms_tools/ms_tools.sas";
+/**%include "/hpawrk/tad66240/repositories/ms_tools/ms_tools.sas";*/
+%include "C:\Users\tad66240\OneDrive - GSK\statistics\repositories\sas\ms_tools\ms_tools.sas";
 
 
 
@@ -178,7 +180,7 @@ run;
 
 
 *** OPEN MULTIPLE REMOTE SAS SESSIONS ***;
-%ms_signon(sess_n=5);
+%ms_signon(sess_n=2);
 
 
 *** INCLUDE EXTERNAL SIMULATION CODE IN ALL REMOTE SESSIONS ***;
