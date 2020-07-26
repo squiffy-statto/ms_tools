@@ -1,8 +1,18 @@
 
-## The ms_tools macro library
 
-The ms_tools library was developed based on a weekly need to perform simulation work faster. The macros have been developed as a set of utility tools that can be combined flexibly to run code in different ways. Whether you want to parallelize a single SAS program that simulates and analyses data all in one go, or you have a number of different programs or macros you want to call in remote sessions, these tools should allow you to do both easily. A table of the functions and their purpose is given below:
+### Introduction
 
+Since SAS 9.2 it has been possible to programatically spawn "child" remote SAS sessions. These can be used to simulate and analyse data in parallel. The remote sessions are tied to the original "parent" session and accept code from the parent using `RSUBMIT` blocks. This allows the user to simultaneously set a number of jobs running and reduce the run time of tasks that normally proceed linearly.
+
+The creation and management of remote sessions from scratch is not hard, but requires a lot of operational SAS code. The ms_tools macros are designed to automate these tasks and therefore make it easy for users to create sessions and submit code in parallel. For more information on how to create remote sessions from scratch there are slides and examples on from the 2019 SAS HPC course on GDrive 
+[here](<https://gdrive.gsk.com/gdrive/drive/ECS/biostatistics-verified/QUJEQS9Nb2RlbGxpbmcgYW5kIFNpbXVsYXRpb24gVXNpbmcgdGhlIEdTSyBIaWdoIFBlcmZvcm1hbmNlIENvbXB1dGluZyBGYWNpbGl0aWVzLw%3D%3D>). 
+
+There is also full documentation on the SAS institute webpages.  
+
+
+### The ms_tools macro library
+
+The ms_tools library has been developed as a set of utility macro tools that can be combined flexibly to run code in different ways. Whether you want to parallelize a single SAS program to simulate and analyse data in one go, or you have a number of different programs (or macros) you want to call in remote sessions, ms_tools should allow you to do both. A table of the functions and their purpose is given below:
 
 Macro         | Description                                                                        |
 --------------|------------------------------------------------------------------------------------|
@@ -13,7 +23,7 @@ Macro         | Description                                                     
 %ms_copydata  | Copies datasets into WORK library of each of the specific remote sessions.         |
 %ms_splitdata | Splits up a dataset into sections and passes each to the specific remote sessions. |
 
-The macros themselves have various arguments that are either required or optional which are explained below.
+Each macro has various arguments that are either required or optional explained below.
 
 <hr>
 
@@ -119,7 +129,21 @@ data_list | Required | Comma list of datasets to be copied to remote sessions. D
 
 **%MS_SPLITDATA()**
 
-Not built yet!
+```sas
 
-<br>
+%ms_splitdata(indata    = <-DSET-> 
+             ,inwhere   = <-SAS-WHERE-CLAUSE->
+             ,sess_list = %str(<-SESS-1-> ,..., <-SESS-K->) 
+             ,bvar_list = %str(<-BVAR-1-> ,..., <-BVAR-K->));
+
+```
+
+Parameter | Type     | Description                                                                                                  |
+----------|----------|--------------------------------------------------------------------------------------------------------------|
+indata    | Required | Dataset to be split up and copied to remote sessions. Datasets are placed in the remote WORK libraries.      | 
+inwhere   | Optional | Where clause to subset dataset before being split up and copied into remote sessions.                        | 
+sess_list | Optional | Comma list of sessions to copy the datasets into. If no sessions given all open remote sessions will be used.| 
+bvar_list | Optional | Comma list of by variables to observe when splitting. No splitting will occur within these variables.        | 
+
 <hr>
+<br>
