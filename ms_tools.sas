@@ -412,7 +412,7 @@
 
 
 	 %*** TRANSFER KEY MACRO VARIABLES INTO REMOTE SESSION ***;
-     %syslput _ii_      = &ms_n.              / remote = &&rs&_ii_.;
+     %syslput ms_n      = &_ii_.              / remote = &&rs&_ii_.;
      %syslput _ii_      = &_ii_.              / remote = &&rs&_ii_.;
      %syslput rs&_ii_   = &&rs&_ii_.          / remote = &&rs&_ii_.;
 	 %syslput mainwork  = %bquote(&mainwork.) / remote = &&rs&_ii_.;
@@ -625,7 +625,7 @@
 
 
 	 %*** TRANSFER KEY MACRO VARIABLES INTO REMOTE SESSION ***;
-     %syslput _ii_       = &ms_n.       / remote = &&rs&_ii_.;
+     %syslput ms_n       = &_ii_.       / remote = &&rs&_ii_.;
      %syslput _ii_       = &_ii_.       / remote = &&rs&_ii_.;
      %syslput rs&_ii_    = &&rs&_ii_.   / remote = &&rs&_ii_.;
 	 %syslput mainwork   = &mainwork.   / remote = &&rs&_ii_.;
