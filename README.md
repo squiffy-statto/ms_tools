@@ -4,10 +4,7 @@
 
 Since SAS 9.2 it has been possible to programatically spawn "child" remote SAS sessions. These can be used to simulate and analyse data in parallel. The remote sessions are tied to the original "parent" session and accept code from the parent using `RSUBMIT` blocks. This allows the user to simultaneously set a number of jobs running and reduce the run time of tasks that normally proceed linearly.
 
-The creation and management of remote sessions from scratch is not hard, but requires a lot of operational SAS code. The ms_tools macros are designed to automate these tasks and therefore make it easy for users to create sessions and submit code in parallel. For more information on how to create remote sessions from scratch there are slides and examples on from the 2019 SAS HPC course on GDrive 
-[here](<https://gdrive.gsk.com/gdrive/drive/ECS/biostatistics-verified/QUJEQS9Nb2RlbGxpbmcgYW5kIFNpbXVsYXRpb24gVXNpbmcgdGhlIEdTSyBIaWdoIFBlcmZvcm1hbmNlIENvbXB1dGluZyBGYWNpbGl0aWVzLw%3D%3D>). 
-
-There is also full documentation on the SAS institute webpages.  
+The creation and management of remote sessions from scratch is not hard, but requires a lot of operational SAS code. The ms_tools macros are designed to automate these tasks and therefore make it easy for users to create sessions and submit code in parallel. For more information on how to create remote sessions from scratch there is full documentation on the SAS institute webpages.  
 
 
 ### The ms_tools macro library
