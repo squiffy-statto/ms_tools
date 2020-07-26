@@ -125,17 +125,43 @@
 | data_list [REQUIRED]:  comma list of datasets to copy into remote work libs. 
 |
 |---------------------------------------------------------------------------------
+| Name     : ms_splitdata 
+| Purpose  : Splits up a dataset and copies to remote session work libraries
+| Arguments: 
+|
+| sess_list [OPTIONAL]:  comma list of sessions to copy the split up dataset into. 
+|                        If no sessions are specified all sessions created by last 
+|                        signon macro are used (using global macro var list 
+|                        SAS_SIGNONS).
+| indata    [REQUIRED]:  dataset to split up and copy into remote work sessions. 
+| inwhere   [OPTIONAL]:  where clause to apply to dataset before splitting up.
+| bvar_list [OPTIONAL]:  comma list of by variables to ensure no splitting occurs
+|                        across any particular by group. If no by vars specified
+|                        then splitting occurs based on the rows of the dataset
+|---------------------------------------------------------------------------------
 | Development Ideas:
 |---------------------------------------------------------------------------------
-|
-| *** SPLIT UP EFFICACY DATASET AND PUT IN REMOTE SESSIONS ***;
-| %ms_splitdata(sess_list  = %str(mysess1, mysess2)
-|              ,indata     = %str(efficacydata)
-|              ,inwhere    = %str(where paramcd = "BPSYS")
-|              ,byvar_list = %str(paramcd, usubjid, avisitn))
-|
+| 1. Ability to turn off macro specific notes.
+| 2. Option to separate out the remote session logs into disctint log files.
+|    (this would be an option to ms_signon. logfiles=<SEPARATE>/<INCLUDED>.
+| 3. A tool to count the NOTES WARNINGS AND ERRORS for each logfile and report
+|    this at the bottom of the main log.
 |
 *********************************************************************************/;
+
+
+%let mlib_name = MS_TOOLS;
+
+%*********************************************************************************;
+%** MS_TOOLS LOAD MESSAGES                                                     ***;
+%*********************************************************************************;
+
+%macro load_messages();
+  %put NO%upcase(te: (&mlib_name.)) --------------------------------------;
+  %put NO%upcase(te: (&mlib_name.)) Macro libaray &mlib_name. included.;
+  %put NO%upcase(te: (&mlib_name.)) --------------------------------------;
+%mend;
+%load_messages()
 
 
 **********************************************************************************;
@@ -314,7 +340,7 @@
       %abort cancel;
   %end;
 
-
+ 
   %*** GET LOCATION OF MAIN WORK ***;
   %let mainwork = %sysfunc(pathname(work));
 
@@ -386,6 +412,7 @@
 
 
 	 %*** TRANSFER KEY MACRO VARIABLES INTO REMOTE SESSION ***;
+     %syslput _ii_      = &ms_n.              / remote = &&rs&_ii_.;
      %syslput _ii_      = &_ii_.              / remote = &&rs&_ii_.;
      %syslput rs&_ii_   = &&rs&_ii_.          / remote = &&rs&_ii_.;
 	 %syslput mainwork  = %bquote(&mainwork.) / remote = &&rs&_ii_.;
@@ -598,6 +625,7 @@
 
 
 	 %*** TRANSFER KEY MACRO VARIABLES INTO REMOTE SESSION ***;
+     %syslput _ii_       = &ms_n.       / remote = &&rs&_ii_.;
      %syslput _ii_       = &_ii_.       / remote = &&rs&_ii_.;
      %syslput rs&_ii_    = &&rs&_ii_.   / remote = &&rs&_ii_.;
 	 %syslput mainwork   = &mainwork.   / remote = &&rs&_ii_.;
@@ -801,3 +829,185 @@
   libname copydata clear;  
 
 %mend;
+
+
+
+
+**********************************************************************************;
+*** MS_SPLITDATA                                                               ***;
+**********************************************************************************;
+ 
+%macro ms_splitdata(sess_list =
+                   ,indata    = 
+                   ,inwhere   = 
+                   ,bvar_list =);
+
+
+  %let toolname = MS_SPLITDATA;
+
+
+  %*** PREVENT FROM RUNNING ON PRODUCTION HARP SERVERS ***;
+  %if %upcase(&syshostname.) = UK1SALX00175 | %upcase(&syshostname.) = US1SALX00259 %then %do;
+      %put ER%upcase(ror:(&toolname.):) This macro is only designed to run on the HPC servers or local versions of PC SAS.;
+      %put ER%upcase(ror:(&toolname.):) It is not designed to run on HARP servers (UK1SALX00175 or US1SALX00259). Macro will abort.;
+      %abort cancel;
+  %end;
+
+
+  %*** GET LOCATION OF MAIN WORK ***;
+  %let mainwork = %sysfunc(pathname(work));
+
+
+  %*** CHECK EITHER EXPLICIT SESSIONS GIVEN OR SAS_SIGNONS EXISTS ***;
+  %if %length(&sess_list.) = 0 %then %do;
+    %if %symexist(sas_signons) %then %do; 
+      %let sess_list = %bquote(&sas_signons.);
+    %end;
+	%else %do;
+	  %put ER%upcase(ror: (&toolname.):) No session list given and no remote sessions found. Macro will abort.;
+      %abort cancel;
+	%end;
+  %end;
+
+
+  %*** COUNT LISTS ***;
+  %let sess_n = %sysfunc(countw(&sess_list.,%str(,)));
+  %let bvar_n = %sysfunc(countw(&bvar_list.,%str(,)));
+
+
+  %*** CREATE SESSION LIST ***;
+  %let sesslist=;
+  %do _ii_ = 1 %to &sess_n.;
+    %let rs&_ii_. = %scan(&sess_list.,&_ii_.,%str(,));
+    %let sesslist = &sesslist. &&rs&_ii_.;
+  %end;
+
+
+  %*** CREATE BY VARS LIST ***;
+  %let bvarlist=;
+  %if &bvar_n. = 0 %then %do;
+    %let bvarlist=NONE;
+  %end;
+  %else %do;
+    %do _ii_ = 1 %to &bvar_n.;
+      %let bvar&_ii_. = %scan(&bvar_list.,&_ii_.,%str(,));
+      %let bvarlist = &bvarlist. &&bvar&_ii_.;
+    %end;
+  %end;
+
+
+  %*** WORK OUT IF DATASET HAS PERM LIBRARY OR IS A WORK DATASET ***;
+  %let intype = %sysfunc(countw(&indata.,%str(.)));
+  %if &intype. = 1 %then %do;
+    %let dlib = WORK;
+    %let dset = &indata.;
+  %end;
+  %else %if &intype. = 2 %then %do;
+    %let dlib = %scan(&indata.,1,%str(.));
+    %let dset = %scan(&indata.,2,%str(.));;
+  %end;
+  %else %do;
+    %put ER%upcase(ror:(&toolname.):) Problem with input dataset. Macro will abort.;
+    %abort cancel;
+  %end;
+
+
+  *** OPTION TO MAKE DIRECTORIES ***;
+  options dlcreatedir;
+
+  
+  *** CREATE LOCATION TO HOLD DATASET TO SPLIT ***;
+  libname split "&mainwork./splitdata";  
+    
+
+  *** CREATE COPY OF THE INPUT DATASET FOR SPLITTING ***;
+  %if &bvarlist. ne NONE %then %do; 
+    proc sort data = &dlib..&dset.
+	          out  = split.&dset.;
+	  by &bvarlist.;
+	  &inwhere.;
+	run;
+  %end;
+  %else %do;
+    data split.&dset.;
+      set &dlib..&dset.;
+      &inwhere.;
+    run;
+  %end;
+ 
+
+  *** COUNT TOTAL GROUPS BASED ON LAST BY VAR IF SPECIFIED OR EACH ROW IF NO BY VARS ***;
+  data _null_; 
+    set split.&dset. end = _eof_;
+    %if &bvarlist. ne NONE %then %do; 
+      by &bvarlist.;
+      if first.&&bvar&bvar_n. then _total_ + 1;
+    %end;
+    %else %do;
+    _total_ + 1;
+    %end;
+    if _eof_ then call symput("group_n",strip(put(_total_,8.)) );
+  run;
+
+
+  *** CREATE GROUPINGS ***; 
+  data split.&dset.;
+    set split.&dset.;
+    retain _count_ 0;
+    %if &bvarlist. ne NONE %then %do; 
+      by &bvarlist.;
+      if first.&&bvar&bvar_n. then _count_ + 1;
+    %end;
+    %else %do;
+    _count_ + 1;
+    %end;
+    
+    %if &group_n. lt &sess_n. %then %do;
+      %put NO%upcase(te:(&toolname.):) The number of distinct by groups (&=group_n.) is less than the number;
+      %put NO%upcase(te:(&toolname.):) of sessions (&=sess_n.). Therefore only the first &group_n. sessions will be used.;
+      _group_ = _count_ - 1;
+    %end;
+    %else %do;
+      _group_ = floor( (_count_*(&sess_n.)) / (&group_n.+1) );
+    %end;
+ 
+  run;
+
+
+  %*** IF LESS GROUPS THAN SESSIONS UPDATE REMOTE SESSION NUMBER ***;
+  %if &group_n. lt &sess_n. %then %do;
+    %let rsess_n = %sysfunc(min(&group_n.,&sess_n.));
+  %end;
+  %else %do;
+    %let rsess_n = &sess_n.;
+  %end;
+
+
+  %do _ii_ = 1 %to &rsess_n.;
+
+    %*** MAKE MACRO VARIABLES AVAILABLE IN REMOTE SESSION ***;
+	%syslput _ii_ = &_ii_. / remote = &&rs&_ii_.;
+    %syslput dset = &dset. / remote = &&rs&_ii_.;
+
+    *** CREATE RSUBMIT BLOCK WITH DATA STEP FOR EACH REMOTE SESSION ***;
+    rsubmit &&rs&_ii_. wait=no cpersist=yes inheritlib=( work=mainwork split ); 
+
+      data &dset.;
+	    set split.&dset.;
+		where _group_ = %eval(&_ii_. - 1);
+	  run;
+
+    endrsubmit;
+
+  %end;
+
+  waitfor _all_ %do _ii_ = 1 %to &rsess_n.; &&rs&_ii_. %end;;
+
+  proc datasets lib = split nolist;
+    delete &dset.;
+  quit;
+
+  libname split clear;  
+
+%mend;
+
