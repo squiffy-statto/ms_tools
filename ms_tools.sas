@@ -1,9 +1,13 @@
 /*******************************************************************************
 |
 | Program Name:    MS_TOOLS.sas
-| Program Version: 1.1
+|
+| Program Version: 1.0
+|
 | Program Purpose: Creates a set of utility macros to help run code in parallel
-| SAS Version:  9.4
+|
+| SAS Version:  9.4  
+|
 | Created By:   Thomas Drury
 | Date:         13-03-20 
 |
@@ -70,9 +74,9 @@
 |    to delete unwanted datasets in the parallel code. 
 |
 | 2. The macro also copies the session number index into each remote session as 
-|    a macro variable &MS_N. This allow the user to update a main macro variable 
+|    a macro variable _ii_. This allow the user to update a main macro variable 
 |    such as a seed to be different for each session. An example might be like
-|    %LET SESS_SEED = %SYSEVALF(&MAINSEED. + &MS_N.); This means the user can 
+|    %LET SESS_SEED = %SYSEVALF(&MAINSEED. + &_ii_.); This means the user can 
 |    simulate different data in parallel and have control over the seed used. 
 |
 |---------------------------------------------------------------------------------
@@ -101,9 +105,9 @@
 |    to delete unwanted datasets in the parallel code. 
 |
 | 2. The macro also copies the session number index into each remote session as 
-|    a macro variable &MS_N. This allow the user to update a main macro variable 
+|    a macro variable _ii_. This allow the user to update a main macro variable 
 |    such as a seed to be different for each session. An example might be like
-|    %LET SESS_SEED = %SYSEVALF(&MAINSEED. + &MS_N.); This means the user can 
+|    %LET SESS_SEED = %SYSEVALF(&MAINSEED. + &_ii_.); This means the user can 
 |    simulate different data in parallel and have control over the seed used. 
 |
 |---------------------------------------------------------------------------------
@@ -169,7 +173,7 @@
   %*** CHECK NUMBER OF SESSIONS ***;
   %if &sess_n. gt 10 %then %do;
       %put ER%upcase(ror:(&toolname.):) This macro is only designed to run a maximum of 10 remote sessions.;
-      %put ER%upcase(ror:(&toolname.):) Running more than 10 sessions could overload your computer. Macro will abort.;
+      %put ER%upcase(ror:(&toolname.):) Running more than 10 sessions could overload the HPC servers. Macro will abort.;
       %abort cancel;
   %end;
   %let sess_n = %sysfunc(abs(&sess_n.));
@@ -308,17 +312,6 @@
 
   %let toolname = MS_INCLUDE;
 
-<<<<<<< HEAD
-
-  %*** PREVENT FROM RUNNING ON PRODUCTION HARP SERVERS ***;
-  %if %upcase(&syshostname.) = UK1SALX00175 | %upcase(&syshostname.) = US1SALX00259 %then %do;
-      %put ER%upcase(ror:(&toolname.):) This macro is only designed to run on the HPC servers or local versions of PC SAS.;
-      %put ER%upcase(ror:(&toolname.):) It is not designed to run on HARP servers (UK1SALX00175 or US1SALX00259). Macro will abort.;
-      %abort cancel;
-  %end;
-
-=======
->>>>>>> c561de4bbce616b96c0708ae2397338d42cbebbc
  
   %*** GET LOCATION OF MAIN WORK ***;
   %let mainwork = %sysfunc(pathname(work));
@@ -391,11 +384,7 @@
 
 
 	 %*** TRANSFER KEY MACRO VARIABLES INTO REMOTE SESSION ***;
-<<<<<<< HEAD
      %syslput ms_n      = &_ii_.              / remote = &&rs&_ii_.;
-=======
-     %syslput _ii_      = &ms_n.              / remote = &&rs&_ii_.;
->>>>>>> c561de4bbce616b96c0708ae2397338d42cbebbc
      %syslput _ii_      = &_ii_.              / remote = &&rs&_ii_.;
      %syslput rs&_ii_   = &&rs&_ii_.          / remote = &&rs&_ii_.;
 	 %syslput mainwork  = %bquote(&mainwork.) / remote = &&rs&_ii_.;
@@ -500,6 +489,7 @@
   %let sess_n  = %sysfunc(countw(&sess_list.,%str(,)));
   %if %upcase(&keep_list.) ne NONE %then %let keep_n = %sysfunc(countw(&keep_list.,%str(,)));
 
+
   %*** CREATE SESSION LIST ***;
   %let sesslist=;
   %do _ii_ = 1 %to &sess_n.;
@@ -600,11 +590,7 @@
 
 
 	 %*** TRANSFER KEY MACRO VARIABLES INTO REMOTE SESSION ***;
-<<<<<<< HEAD
      %syslput ms_n       = &_ii_.       / remote = &&rs&_ii_.;
-=======
-     %syslput _ii_       = &ms_n.       / remote = &&rs&_ii_.;
->>>>>>> c561de4bbce616b96c0708ae2397338d42cbebbc
      %syslput _ii_       = &_ii_.       / remote = &&rs&_ii_.;
      %syslput rs&_ii_    = &&rs&_ii_.   / remote = &&rs&_ii_.;
 	 %syslput mainwork   = &mainwork.   / remote = &&rs&_ii_.;
@@ -617,7 +603,6 @@
 
      *** CREATE RSUBMIT BLOCK WITH MACRO CALL FOR EACH REMOTE SESSION ***;
      rsubmit &&rs&_ii_. wait=no cpersist=&persist. inheritlib=( work=mainwork ); 
-<<<<<<< HEAD
 
 
        %*** IF NEW REMOTE SESSION SET UP SHARED MACRO LIBNAME ***;
@@ -626,16 +611,6 @@
        %end;
 
 
-=======
-
-
-       %*** IF NEW REMOTE SESSION SET UP SHARED MACRO LIBNAME ***;
-       %if &copymacs. ne 1 %then %do;
-         libname shared "&mainwork./shared";
-       %end;
-
-
->>>>>>> c561de4bbce616b96c0708ae2397338d42cbebbc
    	   *** CALL MACRO ***;
        options mstored source sasmstore=shared;
        %&macro_call.;
@@ -685,20 +660,11 @@
  
   %end;
 
-<<<<<<< HEAD
-
-  *** HALT SAS UNTIL ALL REMOTE SESSIONS COMPLETED ***;
-  waitfor _all_ &sesslist.;
-=======
->>>>>>> c561de4bbce616b96c0708ae2397338d42cbebbc
 
   *** HALT SAS UNTIL ALL REMOTE SESSIONS COMPLETED ***;
   waitfor _all_ &sesslist.;
 
-<<<<<<< HEAD
-=======
 
->>>>>>> c561de4bbce616b96c0708ae2397338d42cbebbc
   %*** IF SIGNOFF THEN REMOVE SHARED CATALOG AND LIBNAME ***;
   %if %length(&sign_off.) = 0 | &sign_off. = Y %then %do;
   
@@ -710,15 +676,9 @@
   
   %end;
   
-<<<<<<< HEAD
 
 %mend;
 
-=======
-
-%mend;
-
->>>>>>> c561de4bbce616b96c0708ae2397338d42cbebbc
 
 
 **********************************************************************************;
@@ -732,17 +692,6 @@
   %let toolname = MS_COPYDATA;
 
 
-<<<<<<< HEAD
-  %*** PREVENT FROM RUNNING ON PRODUCTION HARP SERVERS ***;
-  %if %upcase(&syshostname.) = UK1SALX00175 | %upcase(&syshostname.) = US1SALX00259 %then %do;
-      %put ER%upcase(ror:(&toolname.):) This macro is only designed to run on the HPC servers or local versions of PC SAS.;
-      %put ER%upcase(ror:(&toolname.):) It is not designed to run on HARP servers (UK1SALX00175 or US1SALX00259). Macro will abort.;
-      %abort cancel;
-  %end;
-
-
-=======
->>>>>>> c561de4bbce616b96c0708ae2397338d42cbebbc
   %*** GET LOCATION OF MAIN WORK ***;
   %let mainwork = %sysfunc(pathname(work));
 
@@ -854,17 +803,6 @@
   %let toolname = MS_SPLITDATA;
 
 
-<<<<<<< HEAD
-  %*** PREVENT FROM RUNNING ON PRODUCTION HARP SERVERS ***;
-  %if %upcase(&syshostname.) = UK1SALX00175 | %upcase(&syshostname.) = US1SALX00259 %then %do;
-      %put ER%upcase(ror:(&toolname.):) This macro is only designed to run on the HPC servers or local versions of PC SAS.;
-      %put ER%upcase(ror:(&toolname.):) It is not designed to run on HARP servers (UK1SALX00175 or US1SALX00259). Macro will abort.;
-      %abort cancel;
-  %end;
-
-
-=======
->>>>>>> c561de4bbce616b96c0708ae2397338d42cbebbc
   %*** GET LOCATION OF MAIN WORK ***;
   %let mainwork = %sysfunc(pathname(work));
 
